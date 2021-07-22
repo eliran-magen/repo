@@ -29,11 +29,19 @@ class ToonOutline(QtWidgets.QDialog):
 		self.setWindowFlags(self.windowFlags() ^ QtCore.Qt.WindowContextHelpButtonHint)
 		self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowMinimizeButtonHint)
 
+		self.create_actions()
 		self.create_widgets()
 		self.create_layouts()
 		self.create_connections()
 
+	def create_actions(self):
+		self.about_action = QtWidgets.QAction("About", self)
+
 	def create_widgets(self):
+		self.menu_bar = QtWidgets.QMenuBar()
+		self.help_menu = self.menu_bar.addMenu("Help")
+		self.help_menu.addAction(self.about_action)
+
 		self.selected_mesh_le = QtWidgets.QLineEdit()
 		self.selected_mesh_btn = QtWidgets.QPushButton("<")
 		self.selected_mesh_btn.setToolTip("Click to insert selected mesh")
@@ -92,10 +100,14 @@ class ToonOutline(QtWidgets.QDialog):
 		apply_cancel_layout.addWidget(self.cancel_btn)
 
 		main_layout = QtWidgets.QVBoxLayout(self)
+		main_layout.setSpacing(2)
+		main_layout.setMenuBar(self.menu_bar)
 		main_layout.addLayout(form_layout)
 		main_layout.addLayout(apply_cancel_layout)
 
 	def create_connections(self):
+		self.about_action.triggered.connect(self.about)
+
 		self.selected_mesh_btn.clicked.connect(self.input_mesh)
 
 		self.generate_btn.clicked.connect(self.generate_outline_mesh)
@@ -265,6 +277,13 @@ class ToonOutline(QtWidgets.QDialog):
 				toon_outline.close()
 
 			cmds.select(cl = True)
+
+	def about(self):
+		msg = QtWidgets.QMessageBox()
+		msg.setIcon(QtWidgets.QMessageBox.Information)
+		msg.setWindowTitle("About Toon Outline")
+		msg.setText("This tool is used to create a simple toon outline\naround your object to give it a more cartoony look\n\nCreated by Eliran Magen")
+		msg.exec_()
 
 
 if __name__ == "__main__":
