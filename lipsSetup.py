@@ -43,12 +43,6 @@ class LipsSetup(QtWidgets.QDialog):
 		self.lower_vert_sel_le = QtWidgets.QLineEdit()
 		self.lower_vert_sel_btn = QtWidgets.QPushButton("<")
 		self.lower_vert_sel_btn.setToolTip("Press here to insert your\nlower vertices selection\nNote: Please select them in order")
-		self.upper_mid_vert_sel_le = QtWidgets.QLineEdit()
-		self.upper_mid_vert_sel_btn = QtWidgets.QPushButton("<")
-		self.upper_mid_vert_sel_btn.setToolTip("Press here to insert your\nupper mid vertex selection")
-		self.lower_mid_vert_sel_le = QtWidgets.QLineEdit()
-		self.lower_mid_vert_sel_btn = QtWidgets.QPushButton("<")
-		self.lower_mid_vert_sel_btn.setToolTip("Press here to insert your\nlower mid vertex selection")
 		self.head_jnt_sel_le = QtWidgets.QLineEdit()
 		self.head_jnt_sel_btn = QtWidgets.QPushButton("<")
 		self.head_jnt_sel_btn.setToolTip("Press here to insert your\nhead joint selection")
@@ -67,14 +61,6 @@ class LipsSetup(QtWidgets.QDialog):
 		lower_vert_sel_layout.addWidget(self.lower_vert_sel_le)
 		lower_vert_sel_layout.addWidget(self.lower_vert_sel_btn)
 
-		upper_mid_vert_sel_layout = QtWidgets.QHBoxLayout()
-		upper_mid_vert_sel_layout.addWidget(self.upper_mid_vert_sel_le)
-		upper_mid_vert_sel_layout.addWidget(self.upper_mid_vert_sel_btn)
-
-		lower_mid_vert_sel_layout = QtWidgets.QHBoxLayout()
-		lower_mid_vert_sel_layout.addWidget(self.lower_mid_vert_sel_le)
-		lower_mid_vert_sel_layout.addWidget(self.lower_mid_vert_sel_btn)
-
 		head_jnt_sel_layout = QtWidgets.QHBoxLayout()
 		head_jnt_sel_layout.addWidget(self.head_jnt_sel_le)
 		head_jnt_sel_layout.addWidget(self.head_jnt_sel_btn)
@@ -87,8 +73,6 @@ class LipsSetup(QtWidgets.QDialog):
 		insert_sel_layout.setLabelAlignment(QtCore.Qt.AlignLeft)
 		insert_sel_layout.addRow("Upper Lip Vertices:", upper_vert_sel_layout)
 		insert_sel_layout.addRow("Lower Lip Vertices:", lower_vert_sel_layout)
-		insert_sel_layout.addRow("Upper Lip vertex:", upper_mid_vert_sel_layout)
-		insert_sel_layout.addRow("Lower Lip vertex:", lower_mid_vert_sel_layout)
 		insert_sel_layout.addRow("Head Joint:", head_jnt_sel_layout)
 		insert_sel_layout.addRow("Jaw Joint:", jaw_jnt_sel_layout)
 
@@ -106,8 +90,6 @@ class LipsSetup(QtWidgets.QDialog):
 	def create_connections(self):
 		self.upper_vert_sel_btn.clicked.connect(self.upperVertSelection)
 		self.lower_vert_sel_btn.clicked.connect(self.lowerVertSelection)
-		self.upper_mid_vert_sel_btn.clicked.connect(self.upperMidVertSelection)
-		self.lower_mid_vert_sel_btn.clicked.connect(self.lowerMidVertSelection)
 		self.head_jnt_sel_btn.clicked.connect(self.headJntSelection)
 		self.jaw_jnt_sel_btn.clicked.connect(self.jawJntSelection)
 		self.create_btn.clicked.connect(self.createLips)
@@ -135,20 +117,6 @@ class LipsSetup(QtWidgets.QDialog):
 				break
 		if len(vert_list) > 0: self.lower_vert_sel_le.setText(str(vert_list))
 
-	def upperMidVertSelection(self):
-		sel = pm.ls(os = True, fl = True)
-		if self.validateVertex(sel):
-			self.upper_mid_vert_sel_le.setText(str(sel))
-		else:
-			self.upper_mid_vert_sel_le.setText("")
-
-	def lowerMidVertSelection(self):
-		sel = pm.ls(os = True, fl = True)
-		if self.validateVertex(sel):
-			self.lower_mid_vert_sel_le.setText(str(sel))
-		else:
-			self.lower_mid_vert_sel_le.setText("")
-
 	def headJntSelection(self):
 		sel = pm.ls(os = True, fl = True)
 		if self.validateJoint(node = sel):
@@ -165,6 +133,7 @@ class LipsSetup(QtWidgets.QDialog):
 
 	def createLips(self):
 		""" The main function, the function that creates the lip setup using the selections made before"""
+		### upper vertices###
 		# creating the upper joints
 		upper_vert_list = self.strToList(self.upper_vert_sel_le.text())
 		upper_jnt_list = []
@@ -178,19 +147,14 @@ class LipsSetup(QtWidgets.QDialog):
 		else:
 			om.MGlobal.displayError("Please select the upper vertices first")
 
-		# creating the lower joints
-		lower_vert_list = self.strToList(self.lower_vert_sel_le.text())
-		lower_jnt_list = []
-		if len(lower_vert_list) > 0:
-			i = 1
-			for vert in lower_vert_list:
-				pm.select(cl = True)
-				jnt = pm.joint(n = "loLip_{0}_jnt".format(str(i).zfill(2)), rad = 0.1, p = vert.getPosition())
-				lower_jnt_list.append(jnt)
-				i +=1
-		else:
-			om.MGlobal.displayError("Please select the lower vertices first")
+		# determining important joints and joint lists
+		mid_upper_vert_index = int(math.floor(float(len(upper_vert_list) / 2)))
+		mid_upper_vert = upper_vert_list[mid_upper_vert_index]
 
+		left_upper_vert_index = int(math.floor(float(mid_upper_vert_index + (mid_upper_vert_index / 2))))
+		left_upper_vert = upper_vert_list[left_upper_vert_index]
+		right_upper_vert_index = int(math.floor(float(mid_upper_vert_index - (mid_upper_vert_index / 2))))
+		right_upper_vert = upper_vert_list[right_upper_vert_index]
 
 	def validateVertex(self, node):
 		valid = pm.filterExpand(node, sm = 31)
