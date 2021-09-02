@@ -1,0 +1,151 @@
+// ballRig.mel - MEL Script
+// this script is used to create a simple ball rig with squash and stretch functionalities
+// made by Eliran Magen
+
+/*
+getPosition - this is a function to querry the position of a certain point
+*/
+proc float[] getPosition (string $point) {
+	float $pointPos[] = `xform -q -t -ws $point`;
+	return $pointPos;
+}
+
+/*
+createGroupAbove - this function creates a group above the given node and thus zeroes out the node's values
+*/
+proc string createGroupAbove (string $node, string $grpName) {
+    string $grp = `group -n ($node + $grpName) -em`;
+    string $pc_node[] = `parentConstraint -w 1 $node $grp`;
+    delete $pc_node;
+    parent $node $grp;
+    return $grp;
+}
+
+proc batchLock (string $nodes[], string $attribute) {
+    for ($i = 0; $i < size($nodes); $i ++) {
+        setAttr ($nodes[$i] + "." + $attribute) -l on;
+    }
+}
+
+proc createBallRig() {
+    string $ball_geo = "ball_geo";
+    string $ball_btm_vert = "ball_geo.vtx[380]";
+    string $ball_top_vert = "ball_geo.vtx[381]";
+    
+    string $ball_rig_grp = `group -n "ball_RIG_grp" -em`;
+    string $ball_geo_grp = `group -n "ball_geo_grp" -em`;
+    string $ball_jnt_grp = `group -n "ball_jnt_grp" -em`;
+    string $ball_ctrl_grp = `group -n "ball_ctrl_grp" -em`;
+    
+    parent $ball_geo $ball_geo_grp;
+    
+    parent $ball_geo_grp $ball_jnt_grp $ball_ctrl_grp $ball_rig_grp;
+    
+    float $ball_btm_vert_pos[] = getPosition($ball_btm_vert);
+    float $ball_top_vert_pos[] = getPosition($ball_top_vert);
+    
+    select -cl;
+    string $ball_btm_jnt = `joint -n "ball_btm_jnt" -p $ball_btm_vert_pos[0] $ball_btm_vert_pos[1] $ball_btm_vert_pos [2]`;
+    string $ball_top_jnt = `joint -n "ball_top_jnt" -p $ball_top_vert_pos[0] $ball_top_vert_pos[1] $ball_top_vert_pos [2]`;
+    
+    parent $ball_btm_jnt $ball_jnt_grp;
+    
+    string $ball_btm_loc[] = `spaceLocator -n "ball_btm_loc"`;
+    xform -t $ball_btm_vert_pos[0] $ball_btm_vert_pos[1] $ball_btm_vert_pos [2] $ball_btm_loc;
+    string $ball_top_loc[] = `spaceLocator -n "ball_top_loc"`;
+    xform -t $ball_top_vert_pos[0] $ball_top_vert_pos[1] $ball_top_vert_pos [2] $ball_top_loc;
+    
+    string $main_ctrl[] = `circle -s 8 -r 10 -nr 0 1 0 -ch false`;
+    string $main_ctrl_grp = createGroupAbove ($main_ctrl[0], "_os");
+    string $local_ctrl[] = `circle -s 8 -r 7 -nr 0 1 0 -ch false`;
+    string $local_ctrl_grp = createGroupAbove ($local_ctrl[0], "_os");
+    string $btm_ctrl[] = `circle -s 8 -r 5 -nr 0 1 0 -ch false`;
+    string $btm_ctrl_grp = createGroupAbove ($btm_ctrl[0], "_os");
+    string $top_ctrl[] = `circle -s 8 -r 5 -nr 0 1 0 -ch false`;
+    string $top_ctrl_grp = createGroupAbove ($top_ctrl[0], "_os");
+    
+    matchTransform -pos $main_ctrl_grp $ball_btm_jnt;
+    matchTransform -pos $btm_ctrl_grp $ball_btm_jnt;
+    matchTransform -pos $top_ctrl_grp $ball_top_jnt;
+    
+    string $pointCon_node[] = `pointConstraint -w 1 $btm_ctrl_grp $top_ctrl_grp $local_ctrl_grp`;
+    delete $pointCon_node;
+    
+    parent $btm_ctrl_grp $top_ctrl_grp $local_ctrl;
+    parent $local_ctrl_grp $main_ctrl;
+    parent $main_ctrl_grp $ball_ctrl_grp;
+    
+    addAttr -ln "squashStretchAmount" -at double -min 0 -max 1 -dv 1 -k true $main_ctrl;
+    addAttr -ln "volumePreserveAmount" -at double -min 0 -max 1 -dv 1 -k true $main_ctrl;
+    
+    skinCluster -tsb $ball_btm_jnt $ball_geo;
+    
+    string $ik_handle_list[] = `ikHandle -sol ikSCsolver -sj $ball_btm_jnt -ee $ball_top_jnt`;
+    string $ik_handle = $ik_handle_list[0];
+    
+    parent $ik_handle $top_ctrl;
+    parentConstraint $btm_ctrl $ball_btm_jnt;
+    parent $ball_btm_loc $btm_ctrl;
+    parent $ball_top_loc $top_ctrl;
+    
+    string $distance_node = `shadingNode -n ($ball_btm_loc[0] + "_" + $ball_top_loc[0] + "_dist") -asUtility distanceBetween`;
+    string $scale_md_node = `shadingNode -n "ball_scale_md" -asUtility multiplyDivide`;
+    setAttr ($scale_md_node + ".operation") 2;
+    string $ss_md_node = `shadingNode -n "ball_squashStretch_md" -asUtility multiplyDivide`;
+    setAttr ($ss_md_node + ".operation") 2;
+    string $ss_blend_node = `shadingNode -n "ball_squashStretch_blend" -asUtility blendColors`;
+    string $volume_blend_node = `shadingNode -n "ball_volumePreserve_blend" -asUtility blendColors`;
+    
+    string $btm_loc_shape = ($ball_btm_loc[0] + "Shape");
+    string $top_loc_shape = ($ball_top_loc[0] + "Shape");
+    
+    connectAttr ($btm_loc_shape + ".worldPosition[0]") ($distance_node + ".point1");
+    connectAttr ($top_loc_shape + ".worldPosition[0]") ($distance_node + ".point2");
+    
+    connectAttr ($distance_node + ".distance") ($scale_md_node + ".input1X");
+    connectAttr ($main_ctrl[0] + ".scaleX") ($scale_md_node + ".input2X");
+    
+    float $distance = `getAttr ($distance_node + ".distance")`;
+    
+    connectAttr ($scale_md_node + ".outputX") ($ss_md_node + ".input1X");
+    connectAttr ($scale_md_node + ".outputX") ($ss_md_node + ".input2Y");
+    
+    setAttr ($ss_md_node + ".input2X") $distance;
+    setAttr ($ss_md_node + ".input1Y") $distance;
+    setAttr ($ss_md_node + ".input1Z") $distance;
+    setAttr ($ss_md_node + ".input2Z") $distance;
+    
+    connectAttr ($main_ctrl[0] + ".squashStretchAmount") ($ss_blend_node + ".blender");
+    connectAttr ($ss_md_node + ".outputX") ($ss_blend_node + ".color1R");
+    connectAttr ($ss_md_node + ".outputZ") ($ss_blend_node + ".color2R");
+    
+    connectAttr ($main_ctrl[0] + ".volumePreserveAmount") ($volume_blend_node + ".blender");
+    connectAttr ($ss_md_node + ".outputY") ($volume_blend_node + ".color1R");
+    connectAttr ($ss_md_node + ".outputZ") ($volume_blend_node + ".color2R");
+    
+    connectAttr ($ss_blend_node + ".outputR") ($ball_btm_jnt + ".sy");
+    connectAttr ($volume_blend_node + ".outputR") ($ball_btm_jnt + ".sx");
+    connectAttr ($volume_blend_node + ".outputR") ($ball_btm_jnt + ".sz");
+    
+    scaleConstraint $main_ctrl[0] $ball_jnt_grp;
+    
+    setAttr ($ball_btm_loc[0] + ".visibility") 0;
+    setAttr ($ball_top_loc[0] + ".visibility") 0;
+    setAttr ($ik_handle + ".visibility") 0;
+    setAttr ($ball_jnt_grp + ".visibility") 0;
+    
+    string $top_grp_list[] = `ls "*_grp"`;
+    string $os_grp_list[] = `ls "*_os"`;
+    
+    batchLock ($top_grp_list, "t");
+    batchLock ($top_grp_list, "r");
+    batchLock ($top_grp_list, "s");
+    batchLock ($os_grp_list, "t");
+    batchLock ($os_grp_list, "r");
+    batchLock ($os_grp_list, "s");
+    
+    batchLock({$btm_ctrl[0], $top_ctrl[0]}, "r");
+    batchLock({$local_ctrl[0], $btm_ctrl[0], $top_ctrl[0]}, "s");
+    
+    select -cl;
+}
