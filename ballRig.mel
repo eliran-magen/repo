@@ -27,10 +27,10 @@ proc batchLock (string $nodes[], string $attribute) {
     }
 }
 
-proc createBallRig() {
-    string $ball_geo = "ball_geo";
-    string $ball_btm_vert = "ball_geo.vtx[380]";
-    string $ball_top_vert = "ball_geo.vtx[381]";
+global proc createBallRig() { 
+    string $ball_geo = `textField -q -tx ball_textField`;
+    string $ball_btm_vert = `textField -q -tx btm_textField`;
+    string $ball_top_vert = `textField -q -tx top_textField`;
     
     string $ball_rig_grp = `group -n "ball_RIG_grp" -em`;
     string $ball_geo_grp = `group -n "ball_geo_grp" -em`;
@@ -148,4 +148,49 @@ proc createBallRig() {
     batchLock({$local_ctrl[0], $btm_ctrl[0], $top_ctrl[0]}, "s");
     
     select -cl;
+}
+
+proc closeWindow () {
+    deleteUI myWin;
+}
+
+proc insertBallGeo () {
+    string $ball_geo[] = `ls -sl`;
+    textField -e -tx $ball_geo[0] ball_textField;
+}
+
+proc insertBtmVtx () {
+    string $btm_vtx[] = `ls -sl`;
+    textField -e -tx $btm_vtx[0] btm_textField;
+}
+
+proc insertTopVtx () {
+    string $top_vtx[] = `ls -sl`;
+    textField -e -tx $top_vtx[0] top_textField;
+}
+
+global proc ballRig () {
+    if (`window -ex myWin`) {
+        deleteUI myWin;
+        windowPref -remove myWin;
+    }
+    window -t "Ball Rig" -s true -rtf true -w 200 -h 50 myWin;
+    columnLayout -adj true;
+    
+    rowColumnLayout -nc 3;
+    text -l "Ball Geo: " -al "left";
+    textField -tx "" ball_textField;
+    button -l "<" -ann "Press to insert the ball geo" -c "insertBallGeo()";
+    text -l "Bottom Vertex: " -al "left";
+    textField -w 150 -tx "" btm_textField;
+    button -l "<" -ann "Press to insert the bottom vertex of the ball" -w 50 -c "insertBtmVtx()";
+    text -l "Top Vertex: " -al "left";
+    textField -tx "" top_textField;
+    button -l "<" -ann "Press to insert the top vertex of the ball" -c "insertTopVtx()";
+    setParent("..");
+    rowColumnLayout -nc 2;
+    button -l "create" -w 139 -c "createBallRig()";
+    button -l "cancel" -w 139 -c "closeWindow()"; 
+       
+    showWindow myWin;   
 }
